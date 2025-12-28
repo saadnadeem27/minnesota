@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
-import 'package:flutter/material.dart';
 import '../data/local/local_storage_service.dart';
 import 'grid_vm.dart';
 import 'settings_vm.dart';
@@ -9,110 +9,72 @@ import 'settings_vm.dart';
 class SessionVM extends GetxController {
   final RxBool isRunning = false.obs;
   Timer? _timer;
-  final _storage = LocalStorageService();
 
-  // Access other controllers
+  final LocalStorageService _storage = LocalStorageService();
+
   final GridVM gridVM = Get.find<GridVM>();
   final SettingsVM settingsVM = Get.find<SettingsVM>();
 
-  /// 🟢 Start the blinking session
+  int tick = 0;
+
   void startSession() {
-    if (isRunning.value) return;
+    if (isRunning.isTrue) return;
 
     isRunning.value = true;
 
-    // ✅ Determine blinking interval (based on stored or selected speed)
-    String currentSpeed =
-    settingsVM.blinkSpeed.value.isNotEmpty ? settingsVM.blinkSpeed.value : gridVM.blinkSpeed.value;
+    // Determine blink speed
+    String speed = settingsVM.blinkSpeed.value;
+    if (speed.isEmpty) speed = gridVM.blinkSpeed.value;
 
-    int interval;
-    switch (currentSpeed) {
-      case 'Fast':
-        interval = 250;
-        break;
-      case 'Medium':
-        interval = 500;
-        break;
-      default:
-        interval = 800;
+
+    int interval = _getInterval(speed);
+
+    // 🌟 HIDE ALL SELECTED DOTS IMMEDIATELY
+    for (var d in gridVM.dots.where((e) => e.selected)) {
+      gridVM.toggleVisibility(d.id, false);
     }
 
-    // ✅ Save session info for stats / resume
-    _storage.saveSession({
-      'startedAt': DateTime.now().toIso8601String(),
-      'speed': currentSpeed,
-      'brightness': settingsVM.brightness.value,
-      'totalDots': gridVM.dots.where((d) => d.selected).length,
-    });
-
-    // ✅ Start blinking timer
     final random = Random();
-    _timer = Timer.periodic(Duration(milliseconds: interval), (timer) {
-      if (!isRunning.value) {
-        timer.cancel();
-        return;
-      }
+
+    _timer = Timer.periodic(Duration(milliseconds: interval), (_) {
+      if (!isRunning.value) return;
 
       final selectedDots = gridVM.dots.where((d) => d.selected).toList();
       if (selectedDots.isEmpty) return;
 
-      // Pick a random dot
+      // random dot
       final randomDot = selectedDots[random.nextInt(selectedDots.length)];
 
-      // 🔁 Blink effect: toggle visibility briefly
-      randomDot.visible = false;
-      gridVM.dots.refresh();
+      // SHOW blink
+      gridVM.toggleVisibility(randomDot.id, true);
 
-      // Restore visibility after a short delay
-      Future.delayed(const Duration(milliseconds: 150), () {
-        if (isRunning.value) {
-          randomDot.visible = true;
-          gridVM.dots.refresh();
-        }
+      // hide after delay
+      Future.delayed(const Duration(milliseconds: 140), () {
+        if (!isRunning.value) return;
+        gridVM.toggleVisibility(randomDot.id, false);
       });
     });
   }
 
-  /// 🔴 Stop blinking and restore all dots
+
   void stopSession() {
     if (!isRunning.value) return;
-    isRunning.value = false;
 
+    isRunning.value = false;
     _timer?.cancel();
     _timer = null;
 
-    for (var dot in gridVM.dots) {
-      dot.visible = true;
+    // Reset all dots
+    for (var d in gridVM.dots) {
+      gridVM.replaceDot(d.id, visible: true);
     }
-
-    gridVM.dots.refresh();
-
-    // ✅ Log session end
-    _storage.saveSession({
-      'endedAt': DateTime.now().toIso8601String(),
-      'completed': true,
-    });
   }
 
-  /// 🎨 Change color of blinking dots (applies globally)
-  void changeBlinkColor(Color color) {
-    for (var dot in gridVM.dots.where((d) => d.selected)) {
-      dot.color = color;
+  int _getInterval(String speed) {
+    switch (speed) {
+      case 'Fast': return 750; // Fast
+      case 'Medium': return 1000; // Medium
+      default: return 1250; // Slow
     }
-    gridVM.dots.refresh();
-    gridVM.saveGrid(); // ✅ persist color
-  }
-
-  /// 🧹 Reset everything safely
-  void resetSession() {
-    stopSession();
-    gridVM.resetGrid();
-    settingsVM.resetSettings();
-  }
-
-  @override
-  void onClose() {
-    _timer?.cancel();
-    super.onClose();
   }
 }

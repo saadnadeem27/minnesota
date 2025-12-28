@@ -2,34 +2,34 @@ import 'package:get_storage/get_storage.dart';
 import 'package:flutter/material.dart';
 
 class LocalStorageService {
-  final _box = GetStorage();
+  final GetStorage _box = GetStorage();
 
-  // 🔹 KEYS — centralized for easy management
-  static const String _dotsKey = 'dots';
-  static const String _settingsKey = 'settings';
-  static const String _sessionsKey = 'sessions';
-  static const String _blinkSpeedKey = 'blinkSpeed';
+  // 🔑 Centralized Keys
+  static const String dotsKey = 'dots';
+  static const String settingsKey = 'settings';
+  static const String sessionsKey = 'sessions';
+  static const String blinkSpeedKey = 'blinkSpeed';
 
   // =======================================================
-  // 🟢 GRID STORAGE
+  // 🟦 GRID STORAGE
   // =======================================================
 
-  /// Save grid dots (each as a map)
+  /// Save grid (list of dot maps)
   void saveGrid(List<Map<String, dynamic>> dots) {
     try {
-      _box.write(_dotsKey, dots);
+      _box.write(dotsKey, dots);
     } catch (e) {
-      debugPrint('❌ Error saving grid: $e');
+      debugPrint('❌ saveGrid error: $e');
     }
   }
 
-  /// Load grid data (returns list or null)
+  /// Load grid safely
   List<Map<String, dynamic>>? getGrid() {
     try {
-      final data = _box.read<List>(_dotsKey);
-      return data?.cast<Map<String, dynamic>>();
+      final list = _box.read<List>(dotsKey);
+      return list?.map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
-      debugPrint('❌ Error reading grid: $e');
+      debugPrint('❌ getGrid error: $e');
       return null;
     }
   }
@@ -38,43 +38,44 @@ class LocalStorageService {
   // ⚙️ SETTINGS STORAGE
   // =======================================================
 
-  /// Save user settings (color, brightness, speed, fade)
+  /// Save all settings (brightness, speed, color, fade)
   void saveSettings(Map<String, dynamic> settings) {
     try {
-      _box.write(_settingsKey, settings);
+      _box.write(settingsKey, settings);
     } catch (e) {
-      debugPrint('❌ Error saving settings: $e');
+      debugPrint('❌ saveSettings error: $e');
     }
   }
 
-  /// Retrieve settings from local storage
+  /// Load settings map safely
   Map<String, dynamic>? getSettings() {
     try {
-      final data = _box.read<Map<String, dynamic>>(_settingsKey);
-      return data;
+      final raw = _box.read(settingsKey);
+      if (raw == null) return null;
+      return Map<String, dynamic>.from(raw);
     } catch (e) {
-      debugPrint('❌ Error reading settings: $e');
+      debugPrint('❌ getSettings error: $e');
       return null;
     }
   }
 
   // =======================================================
-  // ⚡ BLINK SPEED STORAGE (global, independent from settings)
+  // ⚡ BLINK SPEED STORAGE (Independent global key)
   // =======================================================
 
   void saveBlinkSpeed(String speed) {
     try {
-      _box.write(_blinkSpeedKey, speed);
+      _box.write(blinkSpeedKey, speed);
     } catch (e) {
-      debugPrint('❌ Error saving blink speed: $e');
+      debugPrint('❌ saveBlinkSpeed error: $e');
     }
   }
 
   String? getBlinkSpeed() {
     try {
-      return _box.read<String>(_blinkSpeedKey);
+      return _box.read<String>(blinkSpeedKey);
     } catch (e) {
-      debugPrint('❌ Error reading blink speed: $e');
+      debugPrint('❌ getBlinkSpeed error: $e');
       return null;
     }
   }
@@ -83,39 +84,38 @@ class LocalStorageService {
   // 🧠 SESSION HISTORY STORAGE
   // =======================================================
 
-  /// Save a session log (includes start time, speed, etc.)
+  /// Save a new session record
   void saveSession(Map<String, dynamic> session) {
     try {
-      final sessions = _box.read<List>(_sessionsKey) ?? [];
-      sessions.add(session);
-      _box.write(_sessionsKey, sessions);
+      final existing = _box.read<List>(sessionsKey) ?? [];
+      existing.add(session);
+      _box.write(sessionsKey, existing);
     } catch (e) {
-      debugPrint('❌ Error saving session: $e');
+      debugPrint('❌ saveSession error: $e');
     }
   }
 
-  /// Retrieve all past session logs
+  /// Load all session records
   List<Map<String, dynamic>> getSessions() {
     try {
-      final sessions = _box.read<List>(_sessionsKey) ?? [];
-      return sessions.cast<Map<String, dynamic>>();
+      final list = _box.read<List>(sessionsKey) ?? [];
+      return list.map((e) => Map<String, dynamic>.from(e)).toList();
     } catch (e) {
-      debugPrint('❌ Error reading sessions: $e');
+      debugPrint('❌ getSessions error: $e');
       return [];
     }
   }
 
   // =======================================================
-  // 🧹 CLEAR DATA
+  // 🧹 CLEAR EVERYTHING
   // =======================================================
 
-  /// Clear all saved data (grid, settings, sessions)
   Future<void> clearAll() async {
     try {
       await _box.erase();
-      debugPrint('✅ Local storage cleared successfully.');
+      debugPrint('✅ All local storage cleared.');
     } catch (e) {
-      debugPrint('❌ Error clearing storage: $e');
+      debugPrint('❌ clearAll error: $e');
     }
   }
 }

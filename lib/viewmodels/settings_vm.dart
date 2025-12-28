@@ -4,7 +4,9 @@ import '../data/local/local_storage_service.dart';
 import 'grid_vm.dart';
 
 class SettingsVM extends GetxController {
-  final Rx<Color> selectedColor = Colors.blue.obs;
+  /// Default safe color (NOT MaterialColor)
+  final Rx<Color> selectedColor = const Color(0xFF2196F3).obs;
+
   final RxDouble brightness = 0.8.obs;
   final RxString blinkSpeed = 'Medium'.obs;
   final RxBool fadeAnimation = true.obs;
@@ -15,40 +17,56 @@ class SettingsVM extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // ✅ Safely find GridVM (if available)
-    gridVM = Get.find<GridVM>();
-    loadSettings(); // ✅ Load user preferences at startup
+
+    /// SAFE: check GridVM exists (avoids app start crash)
+    if (Get.isRegistered<GridVM>()) {
+      gridVM = Get.find<GridVM>();
+    } else {
+      gridVM = Get.put(GridVM()); // fallback
+    }
+
+    loadSettings();
   }
 
-  // ✅ Update color (and sync with grid)
+  // ===========================================================
+  // UPDATE METHODS
+  // ===========================================================
+
   void updateColor(Color color) {
     selectedColor.value = color;
+
+    // Apply only to already selected dots
     gridVM.applyColor(color);
+
     saveSettings();
   }
 
-  // ✅ Update brightness (and sync with grid)
   void updateBrightness(double value) {
     final safeValue = value.clamp(0.1, 1.0);
     brightness.value = safeValue;
+
+    // Apply brightness only to selected dots
     gridVM.applyBrightness(safeValue);
+
     saveSettings();
   }
 
-  // ✅ Update blink speed (sync globally)
   void updateBlinkSpeed(String newSpeed) {
     blinkSpeed.value = newSpeed;
-    gridVM.applySpeed(newSpeed);
+    gridVM.applySpeed(newSpeed);   // this sends speed to grid
     saveSettings();
   }
 
-  // ✅ Toggle fade animation
+
   void toggleFade() {
     fadeAnimation.value = !fadeAnimation.value;
     saveSettings();
   }
 
-  // ✅ Save all settings locally
+  // ===========================================================
+  // SAVE / LOAD SETTINGS
+  // ===========================================================
+
   void saveSettings() {
     _storage.saveSettings({
       'color': selectedColor.value.value,
@@ -58,35 +76,39 @@ class SettingsVM extends GetxController {
     });
   }
 
-  // ✅ Load settings from local storage
   void loadSettings() {
     final saved = _storage.getSettings();
+
     if (saved != null) {
       if (saved['color'] != null) {
         selectedColor.value = Color(saved['color']);
       }
+
       brightness.value = (saved['brightness'] ?? 0.8).toDouble();
       blinkSpeed.value = saved['blinkSpeed'] ?? 'Medium';
       fadeAnimation.value = saved['fadeAnimation'] ?? true;
 
-      // ✅ Apply to grid after loading
-      gridVM.applyColor(selectedColor.value);
+      // NO auto-color apply → keeps your selected dots correct
       gridVM.applyBrightness(brightness.value);
       gridVM.applySpeed(blinkSpeed.value);
     } else {
-      saveSettings(); // Ensure default settings persist
+      saveSettings();
     }
   }
 
-  // ✅ Reset all settings to default
+  // ===========================================================
+  // RESET SETTINGS
+  // ===========================================================
+
   void resetSettings() {
-    selectedColor.value = Colors.blue;
+    selectedColor.value = const Color(0xFF2196F3);
     brightness.value = 0.8;
     blinkSpeed.value = 'Medium';
     fadeAnimation.value = true;
-    gridVM.applyColor(Colors.blue);
+
     gridVM.applyBrightness(0.8);
     gridVM.applySpeed('Medium');
+
     saveSettings();
   }
 }

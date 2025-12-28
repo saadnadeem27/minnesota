@@ -7,7 +7,7 @@ import '../widgets/app_button.dart';
 
 class DialogReset extends StatelessWidget {
   DialogReset({super.key});
-  final GridVM vm = Get.find();
+  final GridVM vm = Get.find();   // backend controller
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class DialogReset extends StatelessWidget {
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
-            color: Colors.black.withOpacity(0.1), // soft transparent tint
+            color: Colors.black.withOpacity(0.1),
           ),
         ),
 
@@ -40,6 +40,7 @@ class DialogReset extends StatelessWidget {
                     width: 90,
                   ),
                   const SizedBox(height: 10),
+
                   Text(
                     'Are you sure you want to reset all selections?',
                     textAlign: TextAlign.center,
@@ -49,16 +50,21 @@ class DialogReset extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
+                  // 🔥 Backend Connected Button
                   AppButton(
                     label: 'Yes, Reset',
                     style: AppButtonStyle.primaryBlue,
                     onTap: () {
-                      vm.resetGrid();
-                      Get.back();
+                      vm.resetGrid();      // <-- backend function used
+                      Get.back();          // close dialog
                     },
                   ),
+
                   const SizedBox(height: 12),
+
                   AppButton(
                     label: 'Cancel',
                     style: AppButtonStyle.dangerRed,

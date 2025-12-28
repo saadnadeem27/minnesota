@@ -7,103 +7,168 @@ class GridVM extends GetxController {
   final RxList<DotModel> dots = <DotModel>[].obs;
   final LocalStorageService _storage = LocalStorageService();
 
-  /// Global blink speed (applies to all dots)
+  /// Global blink speed (Slow / Medium / Fast)
   final RxString blinkSpeed = 'Medium'.obs;
 
   @override
   void onInit() {
     super.onInit();
-    loadGrid(); // ✅ Load saved grid (if exists)
-    loadSpeed(); // ✅ Load saved blink speed
+    _loadGridSafe();
+    _loadSpeedSafe();
   }
 
-  /// Generate a new grid (default: 9x8)
+  // =============================================================
+  // GRID MANAGEMENT
+  // =============================================================
+
+  /// Generate fresh 9x8 grid
   void generateGrid({int rows = 9, int cols = 8}) {
     dots.clear();
     int total = rows * cols;
+
     for (int i = 0; i < total; i++) {
       dots.add(DotModel(id: i));
     }
     saveGrid();
   }
 
-  /// Toggle dot selection state
+  /// Select / unselect a dot
   void toggleSelect(int id) {
     final index = dots.indexWhere((d) => d.id == id);
-    if (index != -1) {
-      dots[index].toggleSelect();
-      dots.refresh();
-      saveGrid(); // ✅ Auto-save
-    }
+    if (index == -1) return;
+
+    dots[index] = dots[index].copyWith(
+      selected: !dots[index].selected,
+    );
+    dots.refresh();
+    saveGrid();
   }
 
-  /// Apply color to all selected dots
+  /// Apply color to selected dots ONLY
   void applyColor(Color color) {
-    for (var dot in dots.where((d) => d.selected)) {
-      dot.applyColor(color);
+    for (int i = 0; i < dots.length; i++) {
+      if (dots[i].selected) {
+        dots[i] = dots[i].copyWith(color: color);
+      }
     }
     dots.refresh();
-    saveGrid(); // ✅ Auto-save
+    saveGrid();
   }
 
-  /// Apply brightness to all selected dots
-  void applyBrightness(double brightness) {
-    for (var dot in dots.where((d) => d.selected)) {
-      dot.brightness = brightness;
+  /// Apply brightness to selected dots ONLY
+  void applyBrightness(double value) {
+    for (int i = 0; i < dots.length; i++) {
+      if (dots[i].selected) {
+        dots[i] = dots[i].copyWith(brightness: value);
+      }
     }
     dots.refresh();
-    saveGrid(); // ✅ Auto-save
+    saveGrid();
   }
 
-  /// Apply blink speed (global, not per-dot)
+  /// Apply global blink speed
   void applySpeed(String speed) {
     blinkSpeed.value = speed;
-    saveSpeed(speed); // ✅ Save globally
+    saveSpeed(speed);
   }
 
-  /// Reset all dots to default
+  /// Reset entire grid
   void resetGrid() {
-    for (var d in dots) {
-      d.reset();
+    for (int i = 0; i < dots.length; i++) {
+      dots[i] = dots[i].copyWith(
+        selected: false,
+        color: const Color(0xFF2196F3), // UI safe default
+        visible: true,
+        brightness: 1.0,
+      );
     }
     dots.refresh();
-    saveGrid(); // ✅ Save reset state
+    saveGrid();
   }
 
-  /// Change visibility (used during blinking)
+  /// Visibility toggle (used by blinking)
   void toggleVisibility(int id, bool isVisible) {
     final index = dots.indexWhere((d) => d.id == id);
-    if (index != -1) {
-      dots[index].visible = isVisible;
-      dots.refresh();
-    }
+    if (index == -1) return;
+
+    dots[index] = dots[index].copyWith(visible: isVisible);
+
+    /// 🔥 REQUIRED for UI to update on each blink
+    dots.refresh();
   }
 
-  /// Save grid state to GetStorage
+  // =============================================================
+  // STORAGE
+  // =============================================================
+
   void saveGrid() {
-    _storage.saveGrid(dots.map((d) => d.toMap()).toList());
-  }
-
-  /// Load grid state from GetStorage
-  void loadGrid() {
-    final saved = _storage.getGrid();
-    if (saved != null && saved.isNotEmpty) {
-      dots.assignAll(saved.map((e) => DotModel.fromMap(e)).toList());
-    } else {
-      generateGrid(); // ✅ If no saved data, create new
+    try {
+      _storage.saveGrid(dots.map((d) => d.toMap()).toList());
+    } catch (e) {
+      debugPrint("❌ Error saving grid: $e");
     }
   }
 
-  /// Save blink speed separately
+  void _loadGridSafe() {
+    try {
+      final saved = _storage.getGrid();
+      if (saved != null && saved.isNotEmpty) {
+        dots.assignAll(saved.map((e) => DotModel.fromMap(e)).toList());
+      } else {
+        generateGrid();
+      }
+    } catch (e) {
+      debugPrint("❌ Grid load failed, regenerating: $e");
+      generateGrid();
+    }
+  }
+
   void saveSpeed(String speed) {
     _storage.saveBlinkSpeed(speed);
   }
 
-  /// Load blink speed from GetStorage
-  void loadSpeed() {
-    final savedSpeed = _storage.getBlinkSpeed();
-    if (savedSpeed != null) {
-      blinkSpeed.value = savedSpeed;
+
+  /// Replace dot safely — allows blinking to update UI instantly
+  void replaceDot(int id, {bool? visible}) {
+    final index = dots.indexWhere((d) => d.id == id);
+    if (index == -1) return;
+
+    dots[index] = dots[index].copyWith(
+      visible: visible ?? dots[index].visible,
+    );
+  }
+
+
+
+  void _loadSpeedSafe() {
+    try {
+      final stored = _storage.getBlinkSpeed();
+
+      // 🔥 Debug print for confirmation
+      debugPrint("[GridVM] Loading saved blink speed: $stored");
+
+      if (stored != null && stored.trim().isNotEmpty) {
+        // Only allow valid speeds
+        if (stored == 'Fast' || stored == 'Medium' || stored == 'Slow') {
+          blinkSpeed.value = stored;
+        } else {
+          debugPrint("[GridVM] Invalid stored speed \"$stored\" → resetting to Medium");
+          blinkSpeed.value = 'Medium';
+          saveSpeed('Medium');
+        }
+      } else {
+        // No saved speed → default to Medium
+        blinkSpeed.value = 'Medium';
+        saveSpeed('Medium');
+      }
+
+      debugPrint("[GridVM] ACTIVE blink speed: ${blinkSpeed.value}");
+
+    } catch (e) {
+      debugPrint("[GridVM] Error loading blink speed → using Medium. Error: $e");
+      blinkSpeed.value = 'Medium';
+      saveSpeed('Medium');
     }
   }
 }
+

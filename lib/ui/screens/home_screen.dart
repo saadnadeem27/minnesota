@@ -67,17 +67,17 @@ class HomeScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 18),
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        // ✅ Settings (Green)
-                        SizedBox(
-                          width: double.infinity,
-                          child: AppButton(
-                            label: 'Settings',
-                            style: AppButtonStyle.primaryGreen,
-                            onTap: () => Get.toNamed(Routes.settings),
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                          ),
-                        ),
+                        // const SizedBox(height: 18),
+                        // // ✅ Settings (Green)
+                        // SizedBox(
+                        //   width: double.infinity,
+                        //   child: AppButton(
+                        //     label: 'Settings',
+                        //     style: AppButtonStyle.primaryGreen,
+                        //     onTap: () => Get.toNamed(Routes.settings),
+                        //     padding: const EdgeInsets.symmetric(vertical: 18),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),

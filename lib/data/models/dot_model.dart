@@ -4,8 +4,8 @@ class DotModel {
   final int id;
   bool selected;
   Color color;
-  bool visible; // ✅ for blinking animation
-  double brightness; // ✅ optional brightness control (0.0–1.0)
+  bool visible;           // Used for blinking animation
+  double brightness;      // Range: 0.0 – 1.0
 
   DotModel({
     required this.id,
@@ -15,15 +15,20 @@ class DotModel {
     this.brightness = 1.0,
   });
 
-  /// ✅ Toggle the dot’s selection state
+  /// Toggle selected state
   void toggleSelect() => selected = !selected;
 
-  /// ✅ Change dot color
+  /// Apply new color
   void applyColor(Color newColor) {
     color = newColor;
   }
 
-  /// ✅ Reset to default
+  /// Apply brightness safely
+  void applyBrightness(double value) {
+    brightness = value.clamp(0.1, 1.0);
+  }
+
+  /// Reset to clean default state
   void reset() {
     selected = false;
     color = Colors.blue;
@@ -31,7 +36,7 @@ class DotModel {
     brightness = 1.0;
   }
 
-  /// ✅ Convert to Map for GetStorage
+  /// Convert object → Map (for GetStorage)
   Map<String, dynamic> toMap() => {
     'id': id,
     'selected': selected,
@@ -40,10 +45,10 @@ class DotModel {
     'brightness': brightness,
   };
 
-  /// ✅ Create from Map (when loading from GetStorage)
+  /// Create object ← Map (from GetStorage)
   factory DotModel.fromMap(Map<String, dynamic> map) {
     return DotModel(
-      id: map['id'] ?? 0,
+      id: map['id'],
       selected: map['selected'] ?? false,
       color: Color(map['color'] ?? Colors.blue.value),
       visible: map['visible'] ?? true,
@@ -51,7 +56,7 @@ class DotModel {
     );
   }
 
-  /// ✅ Copy method (for immutability if needed)
+  /// Copy method (supports animations / updates)
   DotModel copyWith({
     int? id,
     bool? selected,
